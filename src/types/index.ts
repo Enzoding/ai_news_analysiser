@@ -41,3 +41,10 @@ export interface NewsSummaryRecord {
 
 // 大模型提供商类型
 export type LLMProvider = 'deepseek' | 'grok';
+
+// LLM配置类型
+export interface LLMConfig {
+  defaultProvider: LLMProvider;
+  fallbackProvider?: LLMProvider;
+  useProviderOrder: LLMProvider[];
+}

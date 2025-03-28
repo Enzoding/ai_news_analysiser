@@ -33,9 +33,13 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="relative flex min-h-screen flex-col">
             <Navbar />
-            <main className="flex-1 container py-6">{children}</main>
+            <main className="flex-1 py-6">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+                {children}
+              </div>
+            </main>
             <footer className="py-6 border-t">
-              <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex flex-col items-center justify-between gap-4 md:flex-row">
                 <p className="text-center text-sm text-muted-foreground">
                   &copy; {new Date().getFullYear()} AI新闻助手 - 自动收集和总结AI领域最新新闻
                 </p>

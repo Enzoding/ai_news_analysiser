@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { fetchRssNews } from './rss-parser';
 import { generateNewsSummary } from './llm-api';
+import { getProviderToUse } from './llm-config';
 import { NewsSource, RawNewsItem, ProcessedNewsItem, NewsSummaryRecord, LLMProvider } from '@/types';
 import { format } from 'date-fns';
 
@@ -30,10 +31,14 @@ export async function fetchAllLatestNews(): Promise<RawNewsItem[]> {
   const sources = await getAllNewsSources();
   let allNews: RawNewsItem[] = [];
   
+  // 每个源最多获取10条新闻，为后续筛选留出空间
+  const MAX_NEWS_PER_SOURCE = 10;
+  
   for (const source of sources) {
     if (source.type === 'rss') {
       const news = await fetchRssNews(source.url, source.id);
-      allNews = [...allNews, ...news];
+      // 每个源最多添加10条
+      allNews = [...allNews, ...news.slice(0, MAX_NEWS_PER_SOURCE)];
     }
     // 未来可以添加API和博客类型的处理
   }
@@ -60,10 +65,10 @@ export async function getProcessedNewsIds(): Promise<Set<string>> {
 
 /**
  * 处理新闻并生成摘要
- * @param provider LLM提供商
+ * @param preferredProvider 首选LLM提供商（可选）
  * @returns 处理结果
  */
-export async function processAndSummarizeNews(provider: LLMProvider = 'deepseek'): Promise<{
+export async function processAndSummarizeNews(preferredProvider?: LLMProvider): Promise<{
   success: boolean;
   recordId?: string;
   count: number;
@@ -85,11 +90,36 @@ export async function processAndSummarizeNews(provider: LLMProvider = 'deepseek'
       return { success: false, count: 0, message: '没有新的未处理新闻' };
     }
     
+    // 按新闻源分组
+    const newsBySource = new Map<string, RawNewsItem[]>();
+    unprocessedNews.forEach(news => {
+      if (!newsBySource.has(news.source_id)) {
+        newsBySource.set(news.source_id, []);
+      }
+      newsBySource.get(news.source_id)!.push(news);
+    });
+    
+    // 每个源最多处理5条，合并为待处理列表
+    const MAX_NEWS_PER_SOURCE = 5;
+    let newsToProcess: RawNewsItem[] = [];
+    
+    for (const [source_id, sourceNews] of newsBySource.entries()) {
+      const sourceNewsToProcess = sourceNews.slice(0, MAX_NEWS_PER_SOURCE);
+      newsToProcess = [...newsToProcess, ...sourceNewsToProcess];
+      console.log(`来源 ${source_id}: 共${sourceNews.length}条未处理新闻，处理${sourceNewsToProcess.length}条`);
+    }
+    
+    console.log(`总计：共有 ${unprocessedNews.length} 条未处理新闻，本次处理 ${newsToProcess.length} 条`);
+    
+    // 获取要使用的LLM提供商
+    const provider = await getProviderToUse(preferredProvider);
+    console.log(`使用${provider}模型处理新闻`);
+    
     // 创建摘要记录
     const summaryTitle = `AI新闻摘要 - ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
     const { data: recordData, error: recordError } = await supabase
       .from('summary_records')
-      .insert([{ title: summaryTitle, items_count: unprocessedNews.length }])
+      .insert([{ title: summaryTitle, items_count: newsToProcess.length }])
       .select();
     
     if (recordError || !recordData || recordData.length === 0) {
@@ -101,22 +131,49 @@ export async function processAndSummarizeNews(provider: LLMProvider = 'deepseek'
     // 处理每条新闻
     const processedItems: ProcessedNewsItem[] = [];
     
-    for (const news of unprocessedNews) {
+    // 添加请求超时处理
+    const TIMEOUT_DURATION = 180000; // 180秒超时，更适合大模型生成时间
+    
+    for (const news of newsToProcess) {
       const content = news.content || news.contentSnippet || '';
       
-      // 使用LLM生成摘要和大纲
-      const { summary, outline } = await generateNewsSummary(provider, news.title, content);
+      try {
+        // 使用LLM生成摘要和大纲，并添加超时处理
+        const summaryPromise = generateNewsSummary(provider, news.title, content);
+        
+        // 创建超时Promise
+        const timeoutPromise = new Promise<{summary: string; outline: string}>((_, reject) => {
+          setTimeout(() => reject(new Error('生成摘要超时')), TIMEOUT_DURATION);
+        });
+        
+        // 使用Promise.race实现超时处理
+        const { summary, outline } = await Promise.race([summaryPromise, timeoutPromise]);
       
-      processedItems.push({
-        id: crypto.randomUUID(),
-        title: news.title,
-        original_link: news.link,
-        pub_date: news.pubDate,
-        source_id: news.source_id,
-        summary,
-        outline,
-        created_at: new Date().toISOString()
-      });
+      
+        processedItems.push({
+          id: crypto.randomUUID(),
+          title: news.title,
+          original_link: news.link,
+          pub_date: news.pubDate,
+          source_id: news.source_id,
+          summary,
+          outline,
+          created_at: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error(`处理新闻 [${news.title}] 失败:`, error);
+        // 失败时使用简单的摘要
+        processedItems.push({
+          id: crypto.randomUUID(),
+          title: news.title,
+          original_link: news.link,
+          pub_date: news.pubDate,
+          source_id: news.source_id,
+          summary: `无法生成摘要: ${error instanceof Error ? error.message : '未知错误'}`,
+          outline: '无法生成大纲',
+          created_at: new Date().toISOString()
+        });
+      }
     }
     
     // 保存处理后的新闻

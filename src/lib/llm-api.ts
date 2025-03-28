@@ -7,7 +7,7 @@ const GROK_API_KEY = process.env.GROK_API_KEY || '';
 
 // Deepseek API配置
 const deepseekConfig = {
-  baseURL: 'https://api.deepseek.com/v1',
+  baseURL: 'https://api.siliconflow.cn/v1',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
@@ -16,7 +16,7 @@ const deepseekConfig = {
 
 // Grok API配置
 const grokConfig = {
-  baseURL: 'https://api.groq.com/openai/v1',
+  baseURL: 'https://api.x.ai/v1',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${GROK_API_KEY}`
@@ -36,11 +36,43 @@ export async function generateNewsSummary(
   content: string
 ): Promise<{ summary: string; outline: string }> {
   try {
-    const prompt = `请你作为一名专业的AI新闻分析师，对以下AI领域新闻进行分析和总结：
+    const date = new Date().toISOString().split('T')[0];
+    let prompt;
+    
+    if (provider === 'grok') {
+      prompt = `请你作为最专业的AI行业分析师，对以下AI领域新闻进行分析和总结：
 
-标题：${title}
+日期: ${date}
 
-内容：${content}
+## 新闻资讯:
+1. ${title} 
+   摘要: ${content.substring(0, Math.min(200, content.length))}...
+   链接: 原文链接
+
+请生成一份结构清晰的AI行业分析，包含以下部分，格式必须严格统一:
+1. 摘要：概括新闻的主要内容和意义（不超过200字）
+2. 大纲：分析3-5个关键要点，突出新闻中的重要信息
+
+请确保内容客观、专业，并保持格式清晰。
+
+请按照以下格式回复：
+
+摘要：
+[摘要内容]
+
+大纲：
+- [要点1]
+- [要点2]
+- [要点3]
+...`;
+    } else {
+      prompt = `请你作为AI行业分析师，对以下AI领域新闻进行分析和总结：
+
+日期: ${date}
+
+## 新闻资讯:
+1. ${title}
+   摘要: ${content.substring(0, Math.min(200, content.length))}...
 
 请提供：
 1. 一段简洁的摘要（不超过200字），概括新闻的主要内容和意义
@@ -61,6 +93,7 @@ export async function generateNewsSummary(
 - [要点2]
 - [要点3]
 ...`;
+    }
 
     let response;
     
@@ -68,10 +101,17 @@ export async function generateNewsSummary(
       response = await axios.post(
         `${deepseekConfig.baseURL}/chat/completions`,
         {
-          model: 'deepseek-chat',
+          model: 'deepseek-ai/DeepSeek-V3',
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 1000
+          stream: false,
+          max_tokens: 2048,
+          stop: null,
+          temperature: 0.7,
+          top_p: 0.7,
+          top_k: 50,
+          frequency_penalty: 0.5,
+          n: 1,
+          response_format: { type: 'text' }
         },
         { headers: deepseekConfig.headers }
       );
@@ -82,10 +122,12 @@ export async function generateNewsSummary(
       response = await axios.post(
         `${grokConfig.baseURL}/chat/completions`,
         {
-          model: 'grok-1',
+          model: 'grok-2-1212',
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 1000
+          stream: false,
+          max_tokens: 10000,
+          temperature: 0.7,
+          top_p: 0.7
         },
         { headers: grokConfig.headers }
       );

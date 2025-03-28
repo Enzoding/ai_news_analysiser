@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processAndSummarizeNews, getSummaryRecords } from '@/lib/news-processor';
-import { LLMProvider } from '@/types';
+import { getLLMConfig, saveLLMConfig } from '@/lib/llm-config';
+import { LLMProvider, LLMConfig } from '@/types';
 
 // 获取摘要记录列表
 export async function GET(request: NextRequest) {
@@ -24,9 +25,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const provider = (body.provider || 'deepseek') as LLMProvider;
+    const { provider, action, config } = body;
     
-    const result = await processAndSummarizeNews(provider);
+    // 如果是配置操作
+    if (action === 'getLLMConfig') {
+      const currentConfig = await getLLMConfig();
+      return NextResponse.json({ success: true, data: currentConfig });
+    }
+    
+    // 如果是保存配置
+    if (action === 'saveLLMConfig' && config) {
+      const saved = await saveLLMConfig(config as LLMConfig);
+      if (!saved) {
+        return NextResponse.json(
+          { success: false, error: '保存LLM配置失败' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ success: true, data: { message: 'LLM配置已保存' } });
+    }
+    
+    // 如果是生成摘要
+    const preferredProvider = provider as LLMProvider | undefined;
+    const result = await processAndSummarizeNews(preferredProvider);
     
     if (!result.success) {
       return NextResponse.json(

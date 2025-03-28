@@ -29,7 +29,9 @@ async function getSummaryDetails(id: string) {
 }
 
 export default async function SummaryPage({ params }: { params: { id: string } }) {
-  const details = await getSummaryDetails(params.id);
+  // 确保先await params对象
+  const { id } = await params;
+  const details = await getSummaryDetails(id);
   
   if (!details || !details.record) {
     notFound();

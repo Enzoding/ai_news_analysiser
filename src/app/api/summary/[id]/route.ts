@@ -7,7 +7,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    // 确保先await params对象
+    const { id } = await params;
     
     const { record, news } = await getSummaryRecordDetails(id);
     

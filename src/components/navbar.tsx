@@ -26,32 +26,33 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="font-bold">AI新闻助手</span>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex h-16 items-center justify-between">
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">AI新闻助手</span>
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "transition-colors hover:text-foreground/80",
-                  pathname === item.href
-                    ? "text-foreground"
-                    : "text-foreground/60"
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
         </div>
+        
+        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "px-3 py-2 rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
+                pathname === item.href
+                  ? "bg-accent/80 text-accent-foreground font-semibold"
+                  : "text-foreground/70"
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
-        <div className="flex flex-1 items-center justify-between md:justify-end">
+        <div className="flex items-center">
           <button
-            className="flex items-center space-x-2 md:hidden"
+            className="flex items-center space-x-2 md:hidden mr-4"
             onClick={toggleMenu}
           >
             {isMenuOpen ? (
@@ -59,14 +60,14 @@ export function Navbar() {
             ) : (
               <MenuIcon className="h-5 w-5" />
             )}
-            <span className="font-bold md:hidden">AI新闻助手</span>
+            <span className="font-bold text-lg md:hidden ml-2">菜单</span>
           </button>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             aria-label="切换主题"
-            className="mr-2"
+            className="rounded-full"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
             <SunIcon className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -78,18 +79,18 @@ export function Navbar() {
 
       {/* 移动端菜单 */}
       {isMenuOpen && (
-        <div className="fixed inset-0 top-14 z-50 grid h-[calc(100vh-3.5rem)] grid-flow-row auto-rows-max overflow-auto p-6 pb-32 shadow-md animate-in slide-in-from-top-1 md:hidden">
-          <div className="relative z-20 grid gap-6 rounded-md bg-background p-4 shadow-md">
+        <div className="fixed inset-0 top-16 z-50 grid h-[calc(100vh-4rem)] grid-flow-row auto-rows-max overflow-auto p-6 pb-32 shadow-md animate-in slide-in-from-top-1 md:hidden">
+          <div className="relative z-20 grid gap-6 rounded-lg bg-background p-6 shadow-md border">
             <nav className="grid grid-flow-row auto-rows-max text-sm">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex w-full items-center rounded-md p-2 text-sm font-medium hover:underline",
+                    "flex w-full items-center rounded-md p-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
                     pathname === item.href
-                      ? "bg-muted font-medium"
-                      : "font-normal"
+                      ? "bg-accent/80 text-accent-foreground font-semibold"
+                      : "text-foreground/70 font-normal"
                   )}
                   onClick={() => setIsMenuOpen(false)}
                 >

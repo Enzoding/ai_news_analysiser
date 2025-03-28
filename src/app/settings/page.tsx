@@ -6,9 +6,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { LLMProvider } from "@/types";
+import { LLMProvider, LLMConfig } from "@/types";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { ArrowUpDown, Check, ChevronsUpDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
+  // LLM配置状态
+  const [llmConfig, setLlmConfig] = useState<LLMConfig>({
+    defaultProvider: 'deepseek',
+    fallbackProvider: 'grok',
+    useProviderOrder: ['deepseek', 'grok']
+  });
+  const [llmConfigLoading, setLlmConfigLoading] = useState(true);
+  const [savingLlmConfig, setSavingLlmConfig] = useState(false);
+  
+  // 定时任务状态
   const [jobStatus, setJobStatus] = useState<{ running: boolean; nextRun: string | null }>({
     running: false,
     nextRun: null,
@@ -79,9 +92,107 @@ export default function SettingsPage() {
     }
   };
 
+  // 获取LLM配置
+  const fetchLlmConfig = async () => {
+    try {
+      setLlmConfigLoading(true);
+      const response = await fetch("/api/summary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "getLLMConfig",
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("获取LLM配置失败");
+      }
+      
+      const data = await response.json();
+      if (data.success && data.data) {
+        setLlmConfig(data.data);
+      }
+    } catch (error) {
+      console.error("获取LLM配置失败:", error);
+      toast.error("获取LLM配置失败", {
+        description: error instanceof Error ? error.message : "未知错误",
+      });
+    } finally {
+      setLlmConfigLoading(false);
+    }
+  };
+
+  // 保存LLM配置
+  const saveLlmConfig = async () => {
+    try {
+      setSavingLlmConfig(true);
+      const response = await fetch("/api/summary", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "saveLLMConfig",
+          config: llmConfig,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("保存LLM配置失败");
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success("LLM配置已保存");
+      } else {
+        throw new Error(data.error || "保存LLM配置失败");
+      }
+    } catch (error) {
+      console.error("保存LLM配置失败:", error);
+      toast.error("保存LLM配置失败", {
+        description: error instanceof Error ? error.message : "未知错误",
+      });
+    } finally {
+      setSavingLlmConfig(false);
+    }
+  };
+
+  // 更新默认提供商
+  const updateDefaultProvider = (provider: LLMProvider) => {
+    setLlmConfig(prev => ({
+      ...prev,
+      defaultProvider: provider
+    }));
+  };
+
+  // 更新备用提供商
+  const updateFallbackProvider = (provider: LLMProvider) => {
+    setLlmConfig(prev => ({
+      ...prev,
+      fallbackProvider: provider
+    }));
+  };
+
+  // 更新提供商顺序
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(llmConfig.useProviderOrder);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setLlmConfig(prev => ({
+      ...prev,
+      useProviderOrder: items
+    }));
+  };
+
   // 初始化加载
   useEffect(() => {
     fetchJobStatus();
+    fetchLlmConfig();
   }, []);
 
   return (
@@ -182,6 +293,112 @@ export default function SettingsPage() {
                   </label>
                 </div>
               </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>LLM配置管理</CardTitle>
+          <CardDescription>
+            配置大模型调用优先级和策略
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {llmConfigLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-6 w-3/4" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">默认LLM提供商</label>
+                <Select
+                  value={llmConfig.defaultProvider}
+                  onValueChange={(value: string) => updateDefaultProvider(value as LLMProvider)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="选择默认提供商" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deepseek">DeepSeek</SelectItem>
+                    <SelectItem value="grok">Grok</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  默认使用的大模型提供商
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">备用LLM提供商</label>
+                <Select
+                  value={llmConfig.fallbackProvider || ""}
+                  onValueChange={(value: string) => updateFallbackProvider(value as LLMProvider)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="选择备用提供商" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deepseek">DeepSeek</SelectItem>
+                    <SelectItem value="grok">Grok</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  当默认提供商不可用时使用的备用提供商
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">提供商优先级顺序</label>
+                <div className="border rounded-md p-4">
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="providers">
+                      {(provided: any) => (
+                        <ul
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className="space-y-2"
+                        >
+                          {llmConfig.useProviderOrder.map((provider, index) => (
+                            <Draggable key={provider} draggableId={provider} index={index}>
+                              {(provided: any) => (
+                                <li
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className="flex items-center justify-between p-2 border rounded-md bg-background"
+                                >
+                                  <div className="flex items-center">
+                                    <span className="mr-2 text-muted-foreground">{index + 1}.</span>
+                                    <span>{provider === "deepseek" ? "DeepSeek" : "Grok"}</span>
+                                  </div>
+                                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                                </li>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </ul>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  拖拽调整提供商的优先级顺序，系统将按此顺序尝试调用
+                </p>
+              </div>
+
+              <Button
+                onClick={saveLlmConfig}
+                disabled={savingLlmConfig}
+                className="w-full"
+              >
+                {savingLlmConfig ? "保存中..." : "保存LLM配置"}
+              </Button>
             </>
           )}
         </CardContent>
