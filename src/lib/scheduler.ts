@@ -1,6 +1,7 @@
 import { CronJob } from 'cron';
 import { processAndSummarizeNews } from './news-processor';
 import { LLMProvider } from '@/types';
+import { getNextPendingTask, updateTaskToProcessing, completeTask, failTask } from './task-queue';
 
 let newsCollectionJob: CronJob | null = null;
 
@@ -16,7 +17,7 @@ export function startNewsCollectionJob(
 ): boolean {
   try {
     // 如果已有任务在运行，先停止
-    if (newsCollectionJob && newsCollectionJob.running) {
+    if (newsCollectionJob) {
       newsCollectionJob.stop();
     }
     
@@ -24,9 +25,43 @@ export function startNewsCollectionJob(
     newsCollectionJob = new CronJob(
       cronExpression,
       async () => {
-        console.log(`[${new Date().toISOString()}] 执行定时新闻收集任务`);
-        const result = await processAndSummarizeNews(provider);
-        console.log(`[${new Date().toISOString()}] 任务结果:`, result);
+        console.log(`[${new Date().toISOString()}] 执行定时任务检查`);
+        
+        // 检查是否有待处理的任务
+        const task = await getNextPendingTask();
+        
+        if (!task) {
+          console.log(`[${new Date().toISOString()}] 没有待处理的任务`);
+          return;
+        }
+        
+        console.log(`[${new Date().toISOString()}] 开始处理任务: ${task.id}`);
+        
+        // 更新任务状态为处理中
+        await updateTaskToProcessing(task.id);
+        
+        try {
+          // 根据任务类型处理任务
+          if (task.task_type === 'news_collection') {
+            // 执行新闻收集
+            const result = await processAndSummarizeNews(task.params.provider);
+            
+            // 更新任务状态为已完成
+            await completeTask(task.id, result);
+            
+            console.log(`[${new Date().toISOString()}] 任务 ${task.id} 处理成功:`, result);
+          } else {
+            // 不支持的任务类型
+            await failTask(task.id, `不支持的任务类型: ${task.task_type}`);
+            console.error(`[${new Date().toISOString()}] 不支持的任务类型: ${task.task_type}`);
+          }
+        } catch (error) {
+          // 处理任务失败
+          const errorMessage = error instanceof Error ? error.message : '处理任务时发生未知错误';
+          await failTask(task.id, errorMessage);
+          
+          console.error(`[${new Date().toISOString()}] 处理任务 ${task.id} 失败:`, error);
+        }
       },
       null, // onComplete
       true, // start
@@ -46,7 +81,7 @@ export function startNewsCollectionJob(
  */
 export function stopNewsCollectionJob(): boolean {
   try {
-    if (newsCollectionJob && newsCollectionJob.running) {
+    if (newsCollectionJob) {
       newsCollectionJob.stop();
       return true;
     }
@@ -66,10 +101,20 @@ export function getJobStatus(): { running: boolean; nextRun: string | null } {
     return { running: false, nextRun: null };
   }
   
-  return {
-    running: newsCollectionJob.running,
-    nextRun: newsCollectionJob.nextDate().toISOString()
-  };
+  // 安全地访问 running 属性和 nextDate 方法
+  try {
+    const running = (newsCollectionJob as any).running === true;
+    const nextDate = (newsCollectionJob as any).nextDate();
+    const nextRun = nextDate ? nextDate.toString() : null;
+    
+    return {
+      running,
+      nextRun
+    };
+  } catch (error) {
+    console.error('获取任务状态失败:', error);
+    return { running: false, nextRun: null };
+  }
 }
 
 // 在服务器启动时自动启动定时任务
