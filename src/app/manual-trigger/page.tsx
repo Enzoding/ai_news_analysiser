@@ -17,13 +17,8 @@ export default function ManualTriggerPage() {
     try {
       setLoading(true);
       
-      const response = await fetch("/api/summary", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ provider }),
-      });
+      // 使用新的手动触发API，只创建任务不执行实际处理
+      const response = await fetch(`/api/manual-trigger?provider=${provider}`);
       
       const data = await response.json();
       
@@ -32,18 +27,15 @@ export default function ManualTriggerPage() {
       }
       
       if (data.success) {
-        toast.success("成功触发新闻收集和摘要", {
-          description: data.data.message,
+        toast.success("任务已创建", {
+          description: "新闻收集任务已添加到队列，将在后台处理",
         });
         
-        if (data.data.recordId) {
-          router.push(`/summary/${data.data.recordId}`);
-        } else {
-          router.push("/");
-        }
+        // 跳转到首页
+        router.push("/");
       } else {
-        toast.error("触发新闻收集失败", {
-          description: data.error || data.data?.message || "未知错误",
+        toast.error("创建任务失败", {
+          description: data.error || "未知错误",
         });
       }
     } catch (error) {

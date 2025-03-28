@@ -138,9 +138,27 @@ export async function generateNewsSummary(
     
     throw new Error('不支持的LLM提供商');
   } catch (error) {
-    console.error('生成摘要失败:', error);
+    // 改进错误处理和日志
+    if (axios.isAxiosError(error)) {
+      console.error('API请求失败:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // 检查是否是认证问题
+      if (error.response?.status === 401) {
+        return {
+          summary: `API认证失败: 请检查${provider === 'deepseek' ? 'DeepSeek' : 'Grok'} API密钥是否正确配置`,
+          outline: '无法生成大纲: API密钥错误'
+        };
+      }
+    }
+    
+    console.error('生成摘要失败:', error instanceof Error ? error.message : String(error));
     return {
-      summary: '摘要生成失败',
+      summary: `摘要生成失败: ${error instanceof Error ? error.message : '未知错误'}`,
       outline: '大纲生成失败'
     };
   }
