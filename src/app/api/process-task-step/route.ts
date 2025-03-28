@@ -4,9 +4,8 @@ import { ProcessingState, ProcessingStep, processTaskStep } from '@/lib/task-pro
 
 /**
  * 处理任务的单个步骤
- * 这个 API 使用 Edge 运行时，避免 Vercel 函数超时问题
+ * 不使用 Edge 运行时，因为我们需要使用 Node.js 特定的模块
  */
-export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
   try {

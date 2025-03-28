@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSummaryRecordDetails } from '@/lib/news-processor';
 
 // 获取摘要记录详情
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    // 确保先await params对象
-    const { id } = await params;
+    // 从 URL 中提取 id 参数
+    const id = request.nextUrl.pathname.split('/').pop() || '';
     
     const { record, news } = await getSummaryRecordDetails(id);
     

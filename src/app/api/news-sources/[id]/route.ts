@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // 获取单个新闻源
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const id = params.id;
+    // 从 URL 中提取 id 参数
+    const id = request.nextUrl.pathname.split('/').pop() || '';
     
     const { data, error } = await supabase
       .from('news_sources')
@@ -30,12 +28,10 @@ export async function GET(
 }
 
 // 更新新闻源
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
-    const id = params.id;
+    // 从 URL 中提取 id 参数
+    const id = request.nextUrl.pathname.split('/').pop() || '';
     const body = await request.json();
     const { name, url, type } = body;
     
@@ -67,12 +63,10 @@ export async function PUT(
 }
 
 // 删除新闻源
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const id = params.id;
+    // 从 URL 中提取 id 参数
+    const id = request.nextUrl.pathname.split('/').pop() || '';
     
     const { error } = await supabase
       .from('news_sources')

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
+import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProcessedNewsItem, NewsSummaryRecord } from "@/types";
@@ -28,9 +29,9 @@ async function getSummaryDetails(id: string) {
   }
 }
 
-export default async function SummaryPage({ params }: { params: { id: string } }) {
-  // 确保先await params对象
-  const { id } = await params;
+const SummaryPage = async ({ params }: { params: { id: string } }) => {
+  // 直接从params中获取id
+  const { id } = params;
   const details = await getSummaryDetails(id);
   
   if (!details || !details.record) {
@@ -98,6 +99,8 @@ export default async function SummaryPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
+export default SummaryPage;
 
 function NewsCard({ item }: { item: ProcessedNewsItem }) {
   return (
