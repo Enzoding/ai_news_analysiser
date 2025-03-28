@@ -72,6 +72,26 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
+    // 如果任务没有完成，自动触发下一步
+    if (updatedState.step !== ProcessingStep.COMPLETE) {
+      // 使用 fetch 触发下一步处理
+      const nextStepUrl = request.nextUrl.origin + '/api/process-task-step';
+      console.log(`[${new Date().toISOString()}] 自动触发下一步: ${updatedState.step}, 任务ID: ${taskId}`);
+      
+      // 异步触发下一步，不等待响应
+      fetch(nextStepUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedState)
+      })
+        .then(() => console.log(`[${new Date().toISOString()}] 下一步处理请求已发送`))
+        .catch(err => console.error(`[${new Date().toISOString()}] 发送下一步处理请求失败:`, err));
+    } else {
+      console.log(`[${new Date().toISOString()}] 任务处理完成, 任务ID: ${taskId}`);
+    }
+    
     // 返回更新后的状态
     return NextResponse.json({
       success: true,
