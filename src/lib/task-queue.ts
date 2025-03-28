@@ -17,6 +17,14 @@ export interface NewsCollectionResult {
   success: boolean;
   count: number;
   message: string;
+  recordId?: string;
+}
+
+// 任务进度信息
+export interface TaskProgress {
+  step: string;
+  progress: number; // 0-100
+  details?: any;
 }
 
 // 任务接口
@@ -27,6 +35,7 @@ export interface Task {
   params: NewsCollectionParams;
   result?: NewsCollectionResult;
   error?: string;
+  progress?: TaskProgress;
   created_at: string;
   updated_at: string;
   completed_at?: string;
@@ -170,6 +179,29 @@ export async function failTask(taskId: string, errorMessage: string): Promise<bo
 
   if (error) {
     console.error('更新任务状态失败:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 更新任务进度
+ * @param taskId 任务ID
+ * @param progress 进度信息
+ * @returns 是否成功
+ */
+export async function updateTaskProgress(taskId: string, progress: TaskProgress): Promise<boolean> {
+  const { error } = await supabase
+    .from('task_queue')
+    .update({
+      progress,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', taskId);
+
+  if (error) {
+    console.error('更新任务进度失败:', error);
     return false;
   }
 
