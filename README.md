@@ -22,18 +22,6 @@
 
 在项目根目录创建`.env.local`文件，添加以下环境变量：
 
-```
-# 应用URL
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Supabase配置
-NEXT_PUBLIC_SUPABASE_URL=你的Supabase项目URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=你的Supabase匿名密钥
-
-# 大模型API密钥
-DEEPSEEK_API_KEY=sk-kiucuvyvfgoovmnzneisrmcfxaxaofxzlulydorjishkocgw
-GROK_API_KEY=xai-F6mxqy4VauptUAFhuQ6wr0Hv19SFxLsSU6GGYXyhpcAnFK65S5jDgc1lP9aLsapegZ9qNMHwHBCvB8mO
-```
 
 ## 数据库设置
 
